@@ -17,9 +17,8 @@ public class NewWorldCheckIn : IJob
 
         var loginRequest = new RestRequest("/auth/login");
 
-        var userName = Environment.GetEnvironmentVariable("hello", EnvironmentVariableTarget.Process);
-
-        var pwd = Environment.GetEnvironmentVariable("test", EnvironmentVariableTarget.Process);
+        var userName = Environment.GetEnvironmentVariable("userName", EnvironmentVariableTarget.Process);
+        var pwd = Environment.GetEnvironmentVariable("pwd", EnvironmentVariableTarget.Process);
 
         loginRequest.AddBody(@"email=" + userName + "&passwd=" + pwd, ContentType.FormUrlEncoded);
         var loginResponse = await client.PostAsync(loginRequest);
@@ -42,6 +41,7 @@ public class NewWorldCheckIn : IJob
 
             if (checkInResponse is {Content: not null, IsSuccessful: true})
                 Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(checkInResponse.Content));
+            Console.WriteLine($"执行结束，下次执行{context.NextFireTimeUtc.Value.ToLocalTime()}");
         }
 
         await Task.Delay(10000);
