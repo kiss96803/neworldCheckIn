@@ -17,9 +17,13 @@ public class NewWorldCheckIn : IJob
 
         var loginRequest = new RestRequest("/auth/login");
 
-        loginRequest.AddBody(@"email=463936274@qq.com&passwd=kisskiss", ContentType.FormUrlEncoded);
+        var userName = Environment.GetEnvironmentVariable("hello", EnvironmentVariableTarget.Process);
+
+        var pwd = Environment.GetEnvironmentVariable("test", EnvironmentVariableTarget.Process);
+
+        loginRequest.AddBody(@"email=" + userName + "&passwd=" + pwd, ContentType.FormUrlEncoded);
         var loginResponse = await client.PostAsync(loginRequest);
-        if (loginResponse.Content != null && loginResponse.IsSuccessful)
+        if (loginResponse is {Content: not null, IsSuccessful: true})
         {
             Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(loginResponse.Content));
 
@@ -36,7 +40,7 @@ public class NewWorldCheckIn : IJob
 
             var checkInResponse = await client.PostAsync(checkInRequest);
 
-            if (checkInResponse.Content != null && checkInResponse.IsSuccessful)
+            if (checkInResponse is {Content: not null, IsSuccessful: true})
                 Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(checkInResponse.Content));
         }
 
