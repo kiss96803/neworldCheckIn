@@ -41,7 +41,7 @@ public class NewWorldCheckIn : IJob
 
             if (checkInResponse is {Content: not null, IsSuccessful: true})
                 Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(checkInResponse.Content));
-            Console.WriteLine($"执行结束，下次执行{context.NextFireTimeUtc.Value.ToLocalTime()}");
+            Console.WriteLine($"执行结束，下次执行{context.NextFireTimeUtc!.Value.ToLocalTime()}");
         }
 
         await Task.Delay(10000);
