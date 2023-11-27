@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Quartz" Version="3.7.0" />
+    <PackageReference Include="FluentScheduler" Version="5.5.1" />
     <PackageReference Include="RestSharp" Version="110.2.0" />
   </ItemGroup>
 

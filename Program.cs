@@ -1,57 +1,69 @@
 ﻿using System;
-using System.Threading.Tasks;
-using Quartz;
-using Quartz.Impl;
+using System.Net;
+using System.Threading;
+using FluentScheduler;
+using RestSharp;
 
 namespace neworldCheckIn // Note: actual namespace depends on the project name.
 {
     internal static class Program
     {
+        private static readonly AutoResetEvent AutoResetEvent = new(false);
+
         static void Main(string[] args)
         {
-            Console.WriteLine("开始启动服务……");
+            Console.WriteLine("NewWorldCheckIn服务已启动");
+
             Console.WriteLine(
                 $"cronExpr表达式为：{Environment.GetEnvironmentVariable("cronExpr", EnvironmentVariableTarget.Process)} ，" +
                 $"username: {Environment.GetEnvironmentVariable("userName", EnvironmentVariableTarget.Process)}," +
                 $"pwd:{Environment.GetEnvironmentVariable("pwd", EnvironmentVariableTarget.Process)}");
-            try
-            {
-                Task.Run(async () => { await SchedulerTask(); });
 
-                while (true)
-                {
-                    Console.Read();
-                }
-            }
-            catch (Exception ex)
+            JobManager.AddJob(CheckIn, t => { t.ToRunNow().AndEvery(1).Days(); });
+
+            Console.CancelKeyPress += ((s, a) =>
             {
-                Console.WriteLine(ex.Message);
-                Console.WriteLine("按任意键退出……");
-                Console.ReadKey();
-            }
+                Console.WriteLine("Exit");
+                AutoResetEvent.Reset();
+            });
+            AutoResetEvent.WaitOne();
         }
 
-        private static async Task SchedulerTask()
+        private static async void CheckIn()
         {
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            //创建调度实例
-            IScheduler scheduler = await sf.GetScheduler();
-            //创建任务实例
-            IJobDetail job = JobBuilder.Create<NewWorldCheckIn>().WithIdentity(new JobKey("NewWorldCheckIn")).Build();
-            //创建触发器实例
+            Console.WriteLine("Start NewWorldCheckIn……");
 
-            //读取Cron表达式
-            var cronExpr = Environment.GetEnvironmentVariable("cronExpr", EnvironmentVariableTarget.Process);
+            var options = new RestClientOptions("https://neworld.space");
+            var client = new RestClient(options);
 
-            DateTime current = DateTime.UtcNow;
-            ITrigger trigger = TriggerBuilder.Create().StartAt(current).WithCronSchedule(cronExpr).Build();
-            Console.WriteLine(
-                $"cronExpr表达式为：{cronExpr} ，下一次运行时间为(本地时间)：{trigger.GetFireTimeAfter(current)!.Value.ToLocalTime()}");
+            var loginRequest = new RestRequest("/auth/login");
 
-            await scheduler.ScheduleJob(job, trigger); //绑定触发器和任务
+            var userName = Environment.GetEnvironmentVariable("userName", EnvironmentVariableTarget.Process);
+            var pwd = Environment.GetEnvironmentVariable("pwd", EnvironmentVariableTarget.Process);
 
-            await scheduler.Start(); //启动监控
-            Console.WriteLine("NewWorldCheckIn服务已启动");
+            loginRequest.AddBody(@"email=" + userName + "&passwd=" + pwd, ContentType.FormUrlEncoded);
+            var loginResponse = await client.PostAsync(loginRequest);
+            if (loginResponse is {Content: not null, IsSuccessful: true})
+            {
+                Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(loginResponse.Content));
+
+                var checkInRequest = new RestRequest("/user/checkin");
+
+                if (loginResponse.Cookies != null)
+                {
+                    foreach (Cookie loginResponseCookie in loginResponse.Cookies)
+                    {
+                        checkInRequest.AddCookie(loginResponseCookie.Name, loginResponseCookie.Value,
+                            loginResponseCookie.Path, loginResponseCookie.Domain);
+                    }
+                }
+
+                var checkInResponse = await client.PostAsync(checkInRequest);
+
+                if (checkInResponse is {Content: not null, IsSuccessful: true})
+                    Console.WriteLine(System.Text.RegularExpressions.Regex.Unescape(checkInResponse.Content));
+                Console.WriteLine($"执行结束，下次执行");
+            }
         }
     }
 }
